@@ -27,3 +27,28 @@ async def get_user_by_id(db: AsyncIOMotorDatabase, user_id: str) -> Optional[Use
     if doc:
         return UserModel(**doc)
     return None
+
+async def get_user_favorites_by_id(db: AsyncIOMotorDatabase, user_id: str) -> Optional[List[str]]:
+    if not ObjectId.is_valid(user_id):
+        return None
+    doc = await db.users.find_one({"_id": ObjectId(user_id)})
+    if doc:
+        favorites = doc.get("favorites", [])
+        return [str(fav) for fav in favorites]
+    return None
+
+async def add_favorite(db: AsyncIOMotorDatabase, user_id: str, favorite_id: str) -> Optional[UserModel]:
+    """
+    Adds a favorite item to the user's favorites list.
+    Returns the updated UserModel, or None if user or favorite_id is invalid.
+    """
+    if not ObjectId.is_valid(user_id) or not ObjectId.is_valid(favorite_id):
+        return None
+    result = await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$push": {"favorites": ObjectId(favorite_id)}}
+    )
+    if result.modified_count:
+        doc = await db.users.find_one({"_id": ObjectId(user_id)})
+        return UserModel(**doc)
+    return None

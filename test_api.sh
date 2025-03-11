@@ -1,53 +1,70 @@
 #!/bin/bash
 
-# Define base API URL
+# Base API URL
 BASE_URL="http://localhost:8000"
 
-# Function to check if the server is running
-check_server() {
-    echo "Checking if FastAPI server is running..."
-    if curl -s "$BASE_URL" | grep -q "Welcome to the FastAPI with MongoDB Atlas API"; then
-        echo "✅ Server is running"
-    else
-        echo "❌ Server is not running. Start it with: uvicorn app.main:app --reload"
-        exit 1
-    fi
-}
+# Check if the server is running
+echo "Checking if FastAPI server is running..."
+if curl -s "$BASE_URL" | grep -q "Welcome to inquiro server"; then
+    echo "✅ Server is running."
+else
+    echo "❌ Server is not running. Start it with: uvicorn app.main:app --reload"
+    exit 1
+fi
 
-# Test fetching all users
-test_get_users() {
-    echo "Testing GET /users/..."
-    curl -s -X GET "$BASE_URL/users/" | jq .
-}
+echo "-----------------------------------------"
 
-# Test creating a new user
-test_create_user() {
-    echo "Testing POST /users/..."
-    curl -s -X POST "$BASE_URL/users/" -H "Content-Type: application/json" -d '{
+# Test GET /users - Get all users
+echo "Testing GET /users"
+curl -s -X GET "$BASE_URL/users/" | jq .
+echo "-----------------------------------------"
+
+# Test POST /users - Create a new user
+echo "Testing POST /users"
+POST_RESPONSE=$(curl -s -X POST "$BASE_URL/users/" \
+  -H "Content-Type: application/json" \
+  -d '{
         "name": "Test User",
         "email": "testuser@example.com"
-    }' | jq .
-}
+      }')
+echo $POST_RESPONSE | jq .
+echo "-----------------------------------------"
 
-# Test updating a user (Replace USER_ID with a valid one)
-test_update_user() {
-    echo "Testing PUT /users/{user_id}..."
-    USER_ID="67cdf37fa694019dff248b52"
-    curl -s -X PUT "$BASE_URL/users/$USER_ID" -H "Content-Type: application/json" -d '{
-        "name": "Updated User"
-    }' | jq .
-}
+# Extract user id from POST response (using _id field)
+USER_ID=$(echo $POST_RESPONSE | jq -r '._id')
 
-# Test deleting a user (Replace USER_ID with a valid one)
-test_delete_user() {
-    echo "Testing DELETE /users/{user_id}..."
-    USER_ID="67cdf37fa694019dff248b52"
-    curl -s -X DELETE "$BASE_URL/users/$USER_ID"
-}
+if [ "$USER_ID" = "null" ] || [ -z "$USER_ID" ]; then
+  echo "Failed to extract user ID from the POST response."
+  exit 1
+fi
 
+echo "Created user ID: $USER_ID"
+echo "-----------------------------------------"
 
-check_server
-test_get_users
-test_create_user
-test_update_user
-test_delete_user
+# Test GET /users/{user_id} - Get user by id
+echo "Testing GET /users/$USER_ID"
+curl -s -X GET "$BASE_URL/users/$USER_ID" | jq .
+echo "-----------------------------------------"
+
+# Test GET /users/{user_id}/favorites - Get user's favorites (should be empty)
+echo "Testing GET /users/$USER_ID/favorites"
+curl -s -X GET "$BASE_URL/users/$USER_ID/favorites" | jq .
+echo "-----------------------------------------"
+
+# Test POST /users/{user_id}/favorites - Add a favorite
+# We'll use an arbitrary ObjectId string as a favorite, e.g., "67cdede2ddcae81d0b5487f7"
+echo "Testing POST /users/$USER_ID/favorites"
+FAVORITE_RESPONSE=$(curl -s -X POST "$BASE_URL/users/$USER_ID/favorites" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "favorite_id": "67cdede2ddcae81d0b5487f7"
+      }')
+echo $FAVORITE_RESPONSE | jq .
+echo "-----------------------------------------"
+
+# Test GET /users/{user_id}/favorites again (should now contain the added favorite)
+echo "Testing GET /users/$USER_ID/favorites after adding favorite"
+curl -s -X GET "$BASE_URL/users/$USER_ID/favorites" | jq .
+echo "-----------------------------------------"
+
+echo "All tests completed."
