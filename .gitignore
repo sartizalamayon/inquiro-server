@@ -26,6 +26,8 @@ venv/
 myenv/
 ENV/
 
+app/pdf_test
+
 # Environment variables
 .env
 .env.local

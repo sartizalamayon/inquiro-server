@@ -20,10 +20,8 @@ async def get_all_users(db: AsyncIOMotorDatabase, skip: int = 0, limit: int = 10
         users.append(UserModel(**doc))
     return users
 
-async def get_user_by_id(db: AsyncIOMotorDatabase, user_id: str) -> Optional[UserModel]:
-    if not ObjectId.is_valid(user_id):
-        return None
-    doc = await db.users.find_one({"_id": ObjectId(user_id)})
+async def get_user_by_email(db: AsyncIOMotorDatabase, email: str) -> Optional[UserModel]:
+    doc = await db.users.find_one({"email": email})
     if doc:
         return UserModel(**doc)
     return None

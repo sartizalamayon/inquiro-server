@@ -22,9 +22,9 @@ async def create_new_user(user: UserCreate, db: AsyncIOMotorDatabase = Depends(g
 async def read_users(db: AsyncIOMotorDatabase = Depends(get_database), skip: int = 0, limit: int = 100):
     return await user_service.get_all_users(db, skip, limit)
 
-@router.get("/{user_id}", response_model=UserModel)
-async def read_user(user_id: str, db: AsyncIOMotorDatabase = Depends(get_database)):
-    user = await user_service.get_user_by_id(db, user_id)
+@router.get("/{email}", response_model=UserModel)
+async def read_user(email: str, db: AsyncIOMotorDatabase = Depends(get_database)):
+    user = await user_service.get_user_by_email(db, email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
