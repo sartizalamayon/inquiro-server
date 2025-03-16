@@ -22,9 +22,7 @@ async def create_new_user(user: UserCreate, db: AsyncIOMotorDatabase = Depends(g
     except HTTPException as e:
         raise e
     except Exception as e:
-        # Provide a cleaner error message without exposing internal details
         error_msg = str(e)
-        # If it's a validation error, provide a more user-friendly message
         if "validation error" in error_msg:
             raise HTTPException(status_code=400, detail="Invalid data format. Please check your inputs.")
         else:
@@ -41,7 +39,7 @@ async def read_user(email: str, db: AsyncIOMotorDatabase = Depends(get_database)
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-# Add credential validation endpoint
+
 class CredentialsModel(BaseModel):
     email: str
     password: str
@@ -63,7 +61,7 @@ async def read_user_favorites(user_id: str, db: AsyncIOMotorDatabase = Depends(g
         raise HTTPException(status_code=404, detail="User not found")
     return favorites
 
-# Define a simple model for adding a favorite
+
 class FavoriteCreate(BaseModel):
     favorite_id: str
 

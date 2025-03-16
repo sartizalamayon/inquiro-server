@@ -15,7 +15,8 @@ import base64
 from google import genai
 from google.genai import types
 from app.utils.prompt import PAPER_EXTRACTION_INSTRUCTIONS
-# Configuration       
+
+# Cloudinary Configuration       
 cloudinary.config( 
     cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME"), 
     api_key = os.getenv("CLOUDINARY_API_KEY"),
@@ -23,7 +24,7 @@ cloudinary.config(
     secure=True
 )
 
-
+# Extract insight from the paper using GEMINI Flash Lite
 def extract_insight(file_path: str, fields: list):
     print(fields)
     client = genai.Client(
@@ -166,7 +167,7 @@ def extract_insight(file_path: str, fields: list):
     return result
 
 
-
+# Extract data from the PDF file
 async def extract_data(file: UploadFile, fields: list):
     # Save PDF temporarily
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as pdf:
@@ -186,7 +187,6 @@ async def extract_data(file: UploadFile, fields: list):
         uploaded_urls = [img["secure_url"] for img in uploaded_images]
 
 
-    # We now have the image urls, now we need to start with text
     # Extract the references
     print(pdf_path)
     data = extract_insight(pdf_path, fields)
