@@ -10,3 +10,4 @@ pymupdf4llm
 pathlib
 cloudinary
 asyncio
+google-genai

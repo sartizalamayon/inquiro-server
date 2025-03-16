@@ -1,6 +1,7 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 import os
 from app.services import paper_service
+from typing import List
 
 
 router = APIRouter(
@@ -10,7 +11,8 @@ router = APIRouter(
 )
 
 @router.post('/extract-pdf')
-async def extract_text(pdf: UploadFile = File(...)):
-    extract_data = await paper_service.extract_data(pdf)
+async def extract_text(pdf: UploadFile = File(...), fields: List[str] = Form([])):
+    print(fields)
+    extract_data = await paper_service.extract_data(pdf, fields)
     return {"data": extract_data}
     

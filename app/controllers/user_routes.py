@@ -14,9 +14,21 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+# Change endpoint from "/create" to "/" for consistency with frontend
 @router.post("/", response_model=UserModel)
 async def create_new_user(user: UserCreate, db: AsyncIOMotorDatabase = Depends(get_database)):
-    return await user_service.create_user(db, user)
+    try:
+        return await user_service.create_user(db, user)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        # Provide a cleaner error message without exposing internal details
+        error_msg = str(e)
+        # If it's a validation error, provide a more user-friendly message
+        if "validation error" in error_msg:
+            raise HTTPException(status_code=400, detail="Invalid data format. Please check your inputs.")
+        else:
+            raise HTTPException(status_code=500, detail=f"Failed to create user: {error_msg}")
 
 @router.get("/", response_model=List[UserModel])
 async def read_users(db: AsyncIOMotorDatabase = Depends(get_database), skip: int = 0, limit: int = 100):
@@ -27,6 +39,21 @@ async def read_user(email: str, db: AsyncIOMotorDatabase = Depends(get_database)
     user = await user_service.get_user_by_email(db, email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+# Add credential validation endpoint
+class CredentialsModel(BaseModel):
+    email: str
+    password: str
+
+@router.post("/validate", response_model=UserModel)
+async def validate_user_credentials(
+    credentials: CredentialsModel,
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    user = await user_service.validate_credentials(db, credentials.email, credentials.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     return user
 
 @router.get("/{user_id}/favorites", response_model=List[str])
