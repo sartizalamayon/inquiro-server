@@ -9,7 +9,7 @@ class UserModel(MongoBaseModel):
     email: EmailStr
     hashed_password: Optional[str] = None  # Store hashed password as base64 string
     favorites: Optional[List[PyObjectId]] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = None
     auth_provider: Optional[str] = None  # Track auth provider (email, google, github)
 

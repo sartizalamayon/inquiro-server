@@ -15,6 +15,10 @@ import base64
 from google import genai
 from google.genai import types
 from app.utils.prompt import PAPER_EXTRACTION_INSTRUCTIONS
+from motor.motor_asyncio import AsyncIOMotorDatabase
+import json
+from datetime import datetime
+
 
 # Cloudinary Configuration       
 cloudinary.config( 
@@ -168,7 +172,7 @@ def extract_insight(file_path: str, fields: list):
 
 
 # Extract data from the PDF file
-async def extract_data(file: UploadFile, fields: list):
+async def extract_data(email, file: UploadFile, fields: list, db: AsyncIOMotorDatabase):
     # Save PDF temporarily
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as pdf:
         pdf.write(await file.read())
@@ -191,9 +195,20 @@ async def extract_data(file: UploadFile, fields: list):
     print(pdf_path)
     data = extract_insight(pdf_path, fields)
     
-   
+    
     # Cleanup
     os.remove(pdf_path)
     
-    return data
+    # Upload the data to MongoDB with the user_email
+    paper_data = json.loads(data)
+
+    paper_data["user_email"] = email
+    paper_data["created_at"] = datetime.now()
+
+    result = await db["papers"].insert_one(paper_data)
+
+    paper_data["_id"] = str(result.inserted_id)
+
+    print(paper_data)
+    return paper_data
 

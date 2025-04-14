@@ -14,7 +14,7 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-# Change endpoint from "/create" to "/" for consistency with frontend
+# Create a new user
 @router.post("/", response_model=UserModel)
 async def create_new_user(user: UserCreate, db: AsyncIOMotorDatabase = Depends(get_database)):
     try:
@@ -28,10 +28,13 @@ async def create_new_user(user: UserCreate, db: AsyncIOMotorDatabase = Depends(g
         else:
             raise HTTPException(status_code=500, detail=f"Failed to create user: {error_msg}")
 
+
+# Get all users
 @router.get("/", response_model=List[UserModel])
 async def read_users(db: AsyncIOMotorDatabase = Depends(get_database), skip: int = 0, limit: int = 100):
     return await user_service.get_all_users(db, skip, limit)
 
+# Get a user by email
 @router.get("/{email}", response_model=UserModel)
 async def read_user(email: str, db: AsyncIOMotorDatabase = Depends(get_database)):
     user = await user_service.get_user_by_email(db, email)
@@ -40,10 +43,12 @@ async def read_user(email: str, db: AsyncIOMotorDatabase = Depends(get_database)
     return user
 
 
+
 class CredentialsModel(BaseModel):
     email: str
     password: str
 
+# Validate user credentials
 @router.post("/validate", response_model=UserModel)
 async def validate_user_credentials(
     credentials: CredentialsModel,
@@ -54,6 +59,7 @@ async def validate_user_credentials(
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return user
 
+# Get user favorites
 @router.get("/{user_id}/favorites", response_model=List[str])
 async def read_user_favorites(user_id: str, db: AsyncIOMotorDatabase = Depends(get_database)):
     favorites = await user_service.get_user_favorites_by_id(db, user_id)
@@ -65,6 +71,7 @@ async def read_user_favorites(user_id: str, db: AsyncIOMotorDatabase = Depends(g
 class FavoriteCreate(BaseModel):
     favorite_id: str
 
+# Add a favorite to a user
 @router.post("/{user_id}/favorites", response_model=UserModel)
 async def add_favorite_route(
     user_id: str,
