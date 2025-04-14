@@ -142,7 +142,7 @@ def extract_insight(file_path: str, fields: list):
                                 items = genai.types.Schema(
                                     type = genai.types.Type.OBJECT,
                                     properties = {
-                                        "filed_name": genai.types.Schema(
+                                        "field_name": genai.types.Schema(
                                             type = genai.types.Type.STRING,
                                         ),
                                         "value": genai.types.Schema(
@@ -226,7 +226,8 @@ def create_default_json_response(error_message):
             "novelty_statement": "",
             "user_given_fields": []
         },
-        "references": []
+        "references": [],
+        "image_urls": []  # Empty array for image URLs
     }
     
     return json.dumps(default_response)
@@ -238,6 +239,9 @@ async def extract_data(email, file: UploadFile, fields: list, db: AsyncIOMotorDa
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as pdf:
         pdf.write(await file.read())
         pdf_path = pdf.name
+
+    # Process the custom fields from the frontend
+    print(f"Processing PDF with custom fields: {fields}")
 
     # Create temporary directory for images
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -253,7 +257,6 @@ async def extract_data(email, file: UploadFile, fields: list, db: AsyncIOMotorDa
 
 
     # Extract the references
-    print(pdf_path)
     data = extract_insight(pdf_path, fields)
     
     
@@ -298,7 +301,8 @@ async def extract_data(email, file: UploadFile, fields: list, db: AsyncIOMotorDa
                         "novelty_statement": "",
                         "user_given_fields": []
                     },
-                    "references": []
+                    "references": [],
+                    "image_urls": []  # Empty array for image URLs
                 }
         except Exception as inner_e:
             print(f"Failed to recover from JSON error: {inner_e}")
@@ -321,11 +325,13 @@ async def extract_data(email, file: UploadFile, fields: list, db: AsyncIOMotorDa
                     "novelty_statement": "",
                     "user_given_fields": []
                 },
-                "references": []
+                "references": [],
+                "image_urls": []  # Empty array for image URLs
             }
 
     paper_data["user_email"] = email
     paper_data["created_at"] = datetime.now()
+    paper_data["image_urls"] = uploaded_urls  # Store the Cloudinary image URLs
 
     result = await db["papers"].insert_one(paper_data)
 

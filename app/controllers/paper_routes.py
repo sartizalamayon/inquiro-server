@@ -5,6 +5,7 @@ from typing import List
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.database.mongodb import get_database
 from bson import ObjectId
+import json
 
 
 
@@ -18,11 +19,17 @@ router = APIRouter(
 async def extract_text(
     email: str = Form(...),
     pdf: UploadFile = File(...),
-    fields: List[str] = Form([]),
+    fields: str = Form("[]"),  # Default to empty JSON array
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
-    print(fields)
-    extract_data = await paper_service.extract_data(email, pdf, fields, db)
+    # Parse fields from JSON string to list
+    try:
+        fields_list = json.loads(fields)
+    except json.JSONDecodeError:
+        fields_list = []
+    
+    print(f"Custom fields: {fields_list}")
+    extract_data = await paper_service.extract_data(email, pdf, fields_list, db)
     return {"data": extract_data}
 
 

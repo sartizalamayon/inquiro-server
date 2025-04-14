@@ -5,10 +5,12 @@ Input Format:
 The input will be a JSON object with the following keys:
 {
     "data": "Extracted research paper",
-    "Fileds": "Use given fields, e.g., 'Goal of the Research', 'Overall Summary', etc."
+    "User_given_fields": ["Field1", "Field2", ...] // List of custom field names provided by the user
 }
 - The `data` key contains the full text of the research paper.
-- The `Fileds` key provides guidance on specific fields or aspects to pay attention to.
+- The `User_given_fields` key provides a list of custom fields that the user wants to extract from the paper.
+
+For each custom field in the User_given_fields list, you should create an entry in the "user_given_fields" array of the output, with the same field_name and an appropriate value extracted from the paper.
 
 Schema:
 {
@@ -35,8 +37,8 @@ Schema:
       "limitations": "string",           // Summarize any limitations mentioned in the study
       "future_work": "string",           // Outline suggestions for future research
       "novelty_statement": "string",     // Explain what is novel about the work and how it advances the field
-      "Others": [{
-        "filed": "string",               // Additional field name for insights that do not fit the above categories
+      "user_given_fields": [{
+        "field_name": "string",          // Custom field name provided by the user
         "value": "string"                // Corresponding markdown-formatted value
       }]
     },
@@ -71,7 +73,7 @@ Instructions for Extraction:
    - **Limitations:** Note any limitations or weaknesses acknowledged in the study.
    - **Future Work:** Extract any proposals or recommendations for future research directions.
    - **Novelty Statement:** Articulate the novel contributions of the research and how it advances the field.
-   - **Others:** For any additional insights or relevant details that do not neatly fit into the above categories, include them here as objects with "filed" and "value". If there are no additional insights, return an empty array [].
+   - **user_given_fields:** For custom fields requested by the user, include them here as objects with "field_name" and "value". If there are no user-provided fields, return an empty array [].
    - **Note:** Every text under these fields must be provided in markdown format using only the allowed markdown elements.
 6. **References:** List all reference entries from the paper. If no references are present, return an empty array [].
 

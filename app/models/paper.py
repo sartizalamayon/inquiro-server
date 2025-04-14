@@ -17,5 +17,6 @@ class PaperModel(MongoBaseModel):
     metadata: dict = {}
     references: List[str] = []
     summary: dict = {}
+    image_urls: List[str] = []  # Array of Cloudinary CDN links for extracted images
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = None
