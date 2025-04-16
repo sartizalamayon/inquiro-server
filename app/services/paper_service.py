@@ -7,17 +7,14 @@ import cloudinary.uploader
 from cloudinary.utils import cloudinary_url
 from dotenv import load_dotenv
 load_dotenv()
-import pathlib
-import pymupdf
 import asyncio
-import re
-import base64
 from google import genai
 from google.genai import types
 from app.utils.prompt import PAPER_EXTRACTION_INSTRUCTIONS
 from motor.motor_asyncio import AsyncIOMotorDatabase
 import json
 from datetime import datetime
+from bson.objectid import ObjectId
 
 
 # Cloudinary Configuration       
@@ -339,4 +336,14 @@ async def extract_data(email, file: UploadFile, fields: list, db: AsyncIOMotorDa
 
     print(paper_data)
     return paper_data
+
+async def get_paper(paper_id: str, db: AsyncIOMotorDatabase):
+    if not ObjectId.is_valid(paper_id):
+        return None
+    paper = await db["papers"].find_one({"_id": ObjectId(paper_id)})
+    if paper is None:
+        return None
+    paper["_id"] = str(paper["_id"])
+    return paper
+
 

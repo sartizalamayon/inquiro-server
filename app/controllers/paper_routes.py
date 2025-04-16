@@ -109,3 +109,17 @@ async def delete_paper(
             status_code=500, 
             detail=f"Failed to delete paper: {str(e)}")
 
+
+@router.get("/{paper_id}")
+async def get_paper(
+    paper_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    paper = await paper_service.get_paper(paper_id, db)
+    if paper is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Paper with ID {paper_id} not found"
+        )
+    return paper
+    
