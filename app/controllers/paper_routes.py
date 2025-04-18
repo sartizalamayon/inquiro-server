@@ -1,7 +1,7 @@
-from fastapi import APIRouter, File, UploadFile, Form, Depends, HTTPException, Path
+from fastapi import APIRouter, File, UploadFile, Form, Depends, HTTPException, Path, Body
 import os
 from app.services import paper_service
-from typing import List
+from typing import List, Dict, Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.database.mongodb import get_database
 from bson import ObjectId
@@ -122,4 +122,80 @@ async def get_paper(
             detail=f"Paper with ID {paper_id} not found"
         )
     return paper
+
+@router.patch("/{paper_id}/update")
+async def update_paper_sections(
+    paper_id: str,
+    data: Dict[str, Any] = Body(..., description="Update data. Can be either sections directly or wrapped in a 'sections' field"),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Update specific sections of a paper.
+    The data can be either:
+    1. Direct sections dictionary where keys are section identifiers and values are content
+    2. A dictionary with a 'sections' field containing the sections to update
+    """
+    try:
+        # Validate paper exists
+        paper = await paper_service.get_paper(paper_id, db)
+        if paper is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Paper with ID {paper_id} not found"
+            )
+        
+        # Handle both formats: direct sections dict or wrapped in 'sections' field
+        sections = data.get("sections", data)
+        
+        # Process updates to standard summary fields
+        updates = {}
+        user_field_updates = []
+        
+        for key, content in sections.items():
+            if key.startswith("user_field_"):
+                # Handle user-given fields updates
+                field_name = key.replace("user_field_", "")
+                
+                # Find the index of this field in user_given_fields array
+                found = False
+                for i, field in enumerate(paper.get("summary", {}).get("user_given_fields", [])):
+                    if field.get("field_name") == field_name:
+                        # Update in user_given_fields array
+                        updates[f"summary.user_given_fields.{i}.value"] = content
+                        found = True
+                        break
+                
+                if not found:
+                    # If field doesn't exist, it will be added later
+                    user_field_updates.append({"field_name": field_name, "value": content})
+                
+            else:
+                # Handle standard summary fields
+                updates[f"summary.{key}"] = content
+        
+        # If there are any updates
+        if updates or user_field_updates:
+            # First apply direct field updates
+            if updates:
+                await db["papers"].update_one(
+                    {"_id": ObjectId(paper_id)},
+                    {"$set": updates}
+                )
+            
+            # Then handle any new user fields that need to be added
+            if user_field_updates:
+                await db["papers"].update_one(
+                    {"_id": ObjectId(paper_id)},
+                    {"$push": {"summary.user_given_fields": {"$each": user_field_updates}}}
+                )
+            
+            return {"success": True, "message": "Paper sections updated successfully"}
+        else:
+            return {"success": False, "message": "No valid sections to update"}
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to update paper: {str(e)}"
+        )
     
