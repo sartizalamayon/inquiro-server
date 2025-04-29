@@ -346,4 +346,68 @@ async def get_paper(paper_id: str, db: AsyncIOMotorDatabase):
     paper["_id"] = str(paper["_id"])
     return paper
 
+async def update_paper_sections(db: AsyncIOMotorDatabase, paper_id: str, sections: dict):
+    """
+    Update specific sections of a paper in the database.
+    
+    Args:
+        db: Database connection
+        paper_id: ID of the paper to update
+        sections: Dictionary with section IDs as keys and content as values
+    
+    Returns:
+        Result of the update operation
+    """
+    if not ObjectId.is_valid(paper_id):
+        raise ValueError(f"Invalid paper ID: {paper_id}")
+    
+    # Process updates
+    updates = {}
+    user_field_updates = []
+    
+    for key, content in sections.items():
+        if key.startswith("user_field_"):
+            # Handle user-given fields updates
+            field_name = key.replace("user_field_", "")
+            
+            # Find if this field exists in user_given_fields array
+            paper = await get_paper(paper_id, db)
+            if not paper:
+                raise ValueError(f"Paper with ID {paper_id} not found")
+                
+            found = False
+            for i, field in enumerate(paper.get("summary", {}).get("user_given_fields", [])):
+                if field.get("field_name") == field_name:
+                    # Update in user_given_fields array
+                    updates[f"summary.user_given_fields.{i}.value"] = content
+                    found = True
+                    break
+            
+            if not found:
+                # If field doesn't exist, it will be added
+                user_field_updates.append({"field_name": field_name, "value": content})
+            
+        else:
+            # Handle standard summary fields
+            updates[f"summary.{key}"] = content
+    
+    # Apply updates
+    result = {"acknowledged": False}
+    
+    if updates:
+        result = await db["papers"].update_one(
+            {"_id": ObjectId(paper_id)},
+            {"$set": updates}
+        )
+    
+    # Add any new user fields
+    if user_field_updates:
+        await db["papers"].update_one(
+            {"_id": ObjectId(paper_id)},
+            {"$push": {"summary.user_given_fields": {"$each": user_field_updates}}}
+        )
+        result["acknowledged"] = True
+    
+    return result
+
 

@@ -11,3 +11,4 @@ pathlib
 cloudinary
 asyncio
 google-genai
+websockets

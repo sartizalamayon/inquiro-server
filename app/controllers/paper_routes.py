@@ -1,11 +1,11 @@
-from fastapi import APIRouter, File, UploadFile, Form, Depends, HTTPException, Path, Body
+from fastapi import APIRouter, File, UploadFile, Form, Depends, HTTPException, Path, Body, WebSocket, WebSocketDisconnect
+from motor.motor_asyncio import AsyncIOMotorDatabase
+import json
+from typing import Dict, List, Any, Optional
 import os
 from app.services import paper_service
-from typing import List, Dict, Any
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.database.mongodb import get_database
 from bson import ObjectId
-import json
 
 
 
@@ -14,6 +14,9 @@ router = APIRouter(
     tags=["pdf"],
     responses={404: {"description": "Not found"}},
 )
+
+# Store active connections
+active_connections: Dict[str, List[WebSocket]] = {}
 
 @router.post('/extract-pdf')
 async def extract_text(
@@ -198,4 +201,120 @@ async def update_paper_sections(
             status_code=500, 
             detail=f"Failed to update paper: {str(e)}"
         )
+    
+# WebSocket endpoint for real-time editing
+@router.websocket("/{paper_id}/ws")
+async def websocket_endpoint(websocket: WebSocket, paper_id: str, db: AsyncIOMotorDatabase = Depends(get_database)):
+    client_id = id(websocket)  # Generate a unique ID for this connection
+    print(f"New WebSocket connection request from client {client_id} for paper {paper_id}")
+    
+    try:
+        await websocket.accept()
+        print(f"WebSocket connection accepted for client {client_id}, paper {paper_id}")
+        
+        # Initialize paper connections if not exists
+        if paper_id not in active_connections:
+            active_connections[paper_id] = []
+        
+        # Add to active connections
+        active_connections[paper_id].append(websocket)
+        print(f"Client {client_id} added to active connections for paper {paper_id}. Total: {len(active_connections[paper_id])}")
+        
+        # Send a confirmation message to the client
+        try:
+            await websocket.send_json({
+                "type": "status",
+                "message": "Connected successfully"
+            })
+        except Exception as e:
+            print(f"Error sending confirmation message to client {client_id}: {e}")
+        
+        # Main message processing loop
+        try:
+            while True:
+                data = await websocket.receive_text()
+                message = json.loads(data)
+                
+                # Handle different message types
+                if message["type"] == "update":
+                    section_id = message["sectionId"]
+                    content = message["content"]
+                    
+                    print(f"Update received from client {client_id} for paper {paper_id}, section {section_id}")
+                    
+                    # Create sections dict for the update
+                    sections = {section_id: content}
+                    
+                    # Update the paper in database
+                    try:
+                        await paper_service.update_paper_sections(db, paper_id, sections)
+                        print(f"Database updated for paper {paper_id}, section {section_id}")
+                        
+                        # Broadcast to all other clients editing this paper
+                        await broadcast_update(paper_id, websocket, {
+                            "type": "update",
+                            "sectionId": section_id,
+                            "content": content
+                        })
+                    except Exception as e:
+                        error_msg = f"Error updating database: {str(e)}"
+                        print(f"Error for client {client_id}: {error_msg}")
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": error_msg
+                        })
+                elif message["type"] == "ping":
+                    # Simple ping-pong to keep connection alive
+                    await websocket.send_json({"type": "pong"})
+        except WebSocketDisconnect:
+            print(f"Client {client_id} disconnected normally from paper {paper_id}")
+        except json.JSONDecodeError as e:
+            print(f"Invalid JSON from client {client_id}: {e}")
+            await websocket.send_json({
+                "type": "error",
+                "message": f"Invalid message format: {str(e)}"
+            })
+        except Exception as e:
+            print(f"Unexpected error for client {client_id}: {str(e)}")
+            try:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"Server error: {str(e)}"
+                })
+            except:
+                # If we can't send the error, the connection is probably already broken
+                pass
+    except Exception as e:
+        print(f"Error in WebSocket connection setup for client {client_id}: {str(e)}")
+    finally:
+        # Clean up the connection
+        try:
+            # Remove from active connections
+            if paper_id in active_connections and websocket in active_connections[paper_id]:
+                active_connections[paper_id].remove(websocket)
+                print(f"Client {client_id} removed from paper {paper_id}. Remaining: {len(active_connections[paper_id])}")
+                
+                # Clean up the paper entry if no more connections
+                if not active_connections[paper_id]:
+                    del active_connections[paper_id]
+                    print(f"No more active connections for paper {paper_id}")
+        except Exception as e:
+            print(f"Error during connection cleanup for client {client_id}: {str(e)}")
+
+async def broadcast_update(paper_id: str, sender: WebSocket, message: Dict[str, Any]):
+    """Broadcast update to all connected clients except the sender"""
+    if paper_id in active_connections:
+        sender_id = id(sender)
+        broadcast_count = 0
+        
+        for connection in active_connections[paper_id]:
+            if connection != sender:  # Don't send back to the sender
+                try:
+                    await connection.send_json(message)
+                    broadcast_count += 1
+                except Exception as e:
+                    print(f"Error broadcasting to a client: {str(e)}")
+                    # Don't remove here - let the main handler detect the failed connection
+        
+        print(f"Broadcast update from client {sender_id} to {broadcast_count} other clients for paper {paper_id}")
     
