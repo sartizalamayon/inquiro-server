@@ -16,7 +16,7 @@ import json
 from datetime import datetime
 from bson.objectid import ObjectId
 import re
-
+from app.services.pinecone_service import upsert_json
 # Cloudinary Configuration       
 cloudinary.config( 
     cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME"), 
@@ -283,7 +283,10 @@ async def extract_data(email, file: UploadFile, fields: list, db: AsyncIOMotorDa
 
     paper_data["_id"] = str(result.inserted_id)
 
-    print(paper_data)
+    # upload the paper data to pinecone
+    upsert_json(paper_data, paper_data["_id"])
+
+
     return paper_data
 
 async def get_paper(paper_id: str, db: AsyncIOMotorDatabase):

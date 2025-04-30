@@ -12,3 +12,4 @@ cloudinary
 asyncio
 google-genai
 websockets
+pinecone
