@@ -15,7 +15,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 import json
 from datetime import datetime
 from bson.objectid import ObjectId
-
+import re
 
 # Cloudinary Configuration       
 cloudinary.config( 
@@ -25,182 +25,196 @@ cloudinary.config(
     secure=True
 )
 
+
+def parse_json(possibly_cut_json: str) -> dict:
+    try:
+        return json.loads(possibly_cut_json)
+    except json.JSONDecodeError:
+        # truncate and repair if cut off at the end of references
+        print("Initial JSON parsing failed, attempting to repair...")
+        try:
+            # Find the start of the "references" array
+            references_start = possibly_cut_json.rfind('"references": [')
+            if references_start == -1:
+                raise ValueError("Could not find 'references' field to recover from.")
+
+            # Keep only up to that point
+            references_part = possibly_cut_json[references_start:]
+            
+            # Find the last complete quoted string in the references
+            matches = list(re.finditer(r'"(.*?)"', references_part))
+            if not matches:
+                raise ValueError("No valid reference entries found.")
+
+            last_valid_ref = matches[-1].group(0)  # e.g. "Author, A. Title..."
+            cut_index = possibly_cut_json.rfind(last_valid_ref) + len(last_valid_ref)
+
+            # Build a recovered version
+            repaired_json = possibly_cut_json[:cut_index] + "\n    ]\n}\n"
+
+            return json.loads(repaired_json)
+        except Exception as e:
+            raise ValueError(f"JSON parsing failed and recovery also failed: {e}")
+        
+
 # Extract insight from the paper using GEMINI Flash Lite
 def extract_insight(file_path: str, fields: list):
-    print(fields)
-    try:
-        client = genai.Client(
-            api_key=os.environ.get("GEMINI_API_KEY"),
-        )
-        files = [
-            # Make the file available in local system working directory
-            client.files.upload(file = file_path), 
-        ]
-        model = "gemini-2.0-flash-lite"
-        contents = [
-            types.Content(
-                role="user",
-                parts=[
-                    types.Part.from_uri(
-                        file_uri=files[0].uri,
-                        mime_type=files[0].mime_type,
-                    ),
-                    types.Part.from_text(text=f"User_given_fields = {fields}"),
-                ],
-            ),]
-        generate_content_config = types.GenerateContentConfig(
-            temperature=1.1,
-            top_p=0.95,
-            top_k=40,
-            max_output_tokens=8192,
-            response_mime_type="application/json",
-            response_schema=genai.types.Schema(
-                type = genai.types.Type.OBJECT,
-                required = ["title", "authors", "date_published", "metadata", "summary", "references"],
-                properties = {
-                    "title": genai.types.Schema(
-                        type = genai.types.Type.STRING,
-                    ),
-                    "authors": genai.types.Schema(
-                        type = genai.types.Type.ARRAY,
-                        items = genai.types.Schema(
-                            type = genai.types.Type.OBJECT,
-                            required = ["name", "affiliation", "email"],
-                            properties = {
-                                "name": genai.types.Schema(
-                                    type = genai.types.Type.STRING,
-                                ),
-                                "affiliation": genai.types.Schema(
-                                    type = genai.types.Type.STRING,
-                                ),
-                                "email": genai.types.Schema(
-                                    type = genai.types.Type.STRING,
-                                ),
-                            },
-                        ),
-                    ),
-                    "date_published": genai.types.Schema(
-                        type = genai.types.Type.STRING,
-                    ),
-                    "metadata": genai.types.Schema(
-                        type = genai.types.Type.OBJECT,
-                        required = ["doi", "conference", "tags"],
-                        properties = {
-                            "doi": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                            ),
-                            "conference": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                            ),
-                            "tags": genai.types.Schema(
-                                type = genai.types.Type.ARRAY,
-                                items = genai.types.Schema(
-                                    type = genai.types.Type.STRING,
-                                ),
-                            ),
-                        },
-                    ),
-                    "summary": genai.types.Schema(
-                        type = genai.types.Type.OBJECT,
-                        required = ["research_problem", "objective", "key_findings", "methods", "numbers", "dataset", "baseline_comparisons", "limitations", "future_work", "novelty_statement", "user_given_fields"],
-                        properties = {
-                            "research_problem": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                            ),
-                            "objective": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                            ),
-                            "key_findings": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                            ),
-                            "methods": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                            ),
-                            "numbers": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                            ),
-                            "dataset": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                            ),
-                            "baseline_comparisons": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                            ),
-                            "limitations": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                            ),
-                            "future_work": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                            ),
-                            "novelty_statement": genai.types.Schema(
-                                type = genai.types.Type.STRING,
-                            ),
-                            "user_given_fields": genai.types.Schema(
-                                type = genai.types.Type.ARRAY,
-                                items = genai.types.Schema(
-                                    type = genai.types.Type.OBJECT,
-                                    properties = {
-                                        "field_name": genai.types.Schema(
-                                            type = genai.types.Type.STRING,
-                                        ),
-                                        "value": genai.types.Schema(
-                                            type = genai.types.Type.STRING,
-                                        ),
-                                    },
-                                ),
-                            ),
-                        },
-                    ),
-                    "references": genai.types.Schema(
-                        type = genai.types.Type.ARRAY,
-                        items = genai.types.Schema(
-                            type = genai.types.Type.STRING,
-                        ),
-                    ),
-                },
-            ),
-            system_instruction=[
-                types.Part.from_text(text=PAPER_EXTRACTION_INSTRUCTIONS),
-            ],
-            )
+     print(fields)
+     client = genai.Client(
+         api_key=os.environ.get("GEMINI_API_KEY"),
+     )
+     
+     print(f"Attempting to upload file: {file_path}")
+     uploaded_file = None
+     try:
+        # Make the file available in local system working directory
+        uploaded_file = client.files.upload(file = file_path)
+        print(f"File upload result: {uploaded_file}")
+     except Exception as e:
+         print(f"Error during file upload: {e}")
+         raise
 
-        response = client.models.generate_content(model=model, contents=contents, config=generate_content_config)
+     # Check if upload was successful and returned expected object
+     if not uploaded_file or not hasattr(uploaded_file, 'uri') or not hasattr(uploaded_file, 'mime_type'):
+         print(f"File upload failed or returned unexpected result: {uploaded_file}")
+         raise ValueError("Gemini file upload failed or did not return URI/mime_type.")
+
+     files = [uploaded_file]
+
+     model = "gemini-2.0-flash-lite"
+     contents = [
+         types.Content(
+             role="user",
+             parts=[
+                 types.Part.from_uri(
+                     file_uri=files[0].uri,
+                     mime_type=files[0].mime_type,
+                 ),
+                 types.Part.from_text(text=f"User_given_fields = {fields}"),
+             ],
+         ),
+        ]
         
-        # Validate response structure before accessing
-        if not response or not response.candidates or len(response.candidates) == 0:
-            print("Warning: Empty response from Gemini API")
-            return create_default_json_response("Empty API response")
-            
-        if not response.candidates[0].content or not response.candidates[0].content.parts:
-            print("Warning: No content in response from Gemini API")
-            return create_default_json_response("No content in API response")
-            
-        result = response.candidates[0].content.parts[0].text
-        
-        # Validate that result looks like valid JSON (starts with { and ends with })
-        if not result or not result.strip().startswith('{') or not result.strip().endswith('}'):
-            print(f"Warning: Invalid JSON format from Gemini API. Result: {result[:100]}...")
-            
-            # Try to extract valid JSON
-            start_idx = result.find('{')
-            end_idx = result.rfind('}') + 1
-            
-            if start_idx >= 0 and end_idx > start_idx:
-                result = result[start_idx:end_idx]
-            else:
-                return create_default_json_response("Could not extract valid JSON")
-        
-        # Verify we can parse it
-        try:
-            json.loads(result)
-        except json.JSONDecodeError:
-            print(f"Warning: Result is not valid JSON: {result[:100]}...")
-            return create_default_json_response("Invalid JSON from API")
-        
-        return result
+     generate_content_config = types.GenerateContentConfig(
+         temperature=1.1,
+         max_output_tokens=8192,
+         response_mime_type="application/json",
+         response_schema=genai.types.Schema(
+             type = genai.types.Type.OBJECT,
+             required = ["title", "authors", "date_published", "metadata", "summary", "references"],
+             property_ordering=["title", "authors", "date_published", "metadata", "summary", "references"],
+             properties = {
+                 "title": genai.types.Schema(
+                     type = genai.types.Type.STRING,
+                 ),
+                 "authors": genai.types.Schema(
+                     type = genai.types.Type.ARRAY,
+                     items = genai.types.Schema(
+                         type = genai.types.Type.OBJECT,
+                         required = ["name", "affiliation", "email"],
+                         properties = {
+                             "name": genai.types.Schema(
+                                 type = genai.types.Type.STRING,
+                             ),
+                             "affiliation": genai.types.Schema(
+                                 type = genai.types.Type.STRING,
+                             ),
+                             "email": genai.types.Schema(
+                                 type = genai.types.Type.STRING,
+                             ),
+                         },
+                     ),
+                 ),
+                 "date_published": genai.types.Schema(
+                     type = genai.types.Type.STRING,
+                 ),
+                 "metadata": genai.types.Schema(
+                     type = genai.types.Type.OBJECT,
+                     required = ["doi", "conference", "tags"],
+                     properties = {
+                         "doi": genai.types.Schema(
+                             type = genai.types.Type.STRING,
+                         ),
+                         "conference": genai.types.Schema(
+                             type = genai.types.Type.STRING,
+                         ),
+                         "tags": genai.types.Schema(
+                             type = genai.types.Type.ARRAY,
+                             items = genai.types.Schema(
+                                 type = genai.types.Type.STRING,
+                             ),
+                         ),
+                     },
+                 ),
+                 "summary": genai.types.Schema(
+                     type = genai.types.Type.OBJECT,
+                     required = ["research_problem", "objective", "key_findings", "methods", "numbers", "dataset", "baseline_comparisons", "limitations", "future_work", "novelty_statement", "user_given_fields"],
+                     properties = {
+                         "research_problem": genai.types.Schema(
+                             type = genai.types.Type.STRING,
+                         ),
+                         "objective": genai.types.Schema(
+                             type = genai.types.Type.STRING,
+                         ),
+                         "key_findings": genai.types.Schema(
+                             type = genai.types.Type.STRING,
+                         ),
+                         "methods": genai.types.Schema(
+                             type = genai.types.Type.STRING,
+                         ),
+                         "numbers": genai.types.Schema(
+                             type = genai.types.Type.STRING,
+                         ),
+                         "dataset": genai.types.Schema(
+                             type = genai.types.Type.STRING,
+                         ),
+                         "baseline_comparisons": genai.types.Schema(
+                             type = genai.types.Type.STRING,
+                         ),
+                         "limitations": genai.types.Schema(
+                             type = genai.types.Type.STRING,
+                         ),
+                         "future_work": genai.types.Schema(
+                             type = genai.types.Type.STRING,
+                         ),
+                         "novelty_statement": genai.types.Schema(
+                             type = genai.types.Type.STRING,
+                         ),
+                         "user_given_fields": genai.types.Schema(
+                             type = genai.types.Type.ARRAY,
+                             items = genai.types.Schema(
+                                 type = genai.types.Type.OBJECT,
+                                 properties = {
+                                     "filed_name": genai.types.Schema(
+                                         type = genai.types.Type.STRING,
+                                     ),
+                                     "value": genai.types.Schema(
+                                         type = genai.types.Type.STRING,
+                                     ),
+                                 },
+                             ),
+                         ),
+                     },
+                 ),
+                 "references": genai.types.Schema(
+                     type = genai.types.Type.ARRAY,
+                     items = genai.types.Schema(
+                         type = genai.types.Type.STRING,
+                     ),
+                 ),
+             },
+         ),
+         system_instruction=types.Content(
+             parts=[types.Part.from_text(text=PAPER_EXTRACTION_INSTRUCTIONS)]
+         ),
+     )
+ 
+     response = client.models.generate_content(model=model, contents=contents, config=generate_content_config)
+     result = response.candidates[0].content.parts[0].text
     
-    except Exception as e:
-        print(f"Error in extract_insight: {str(e)}")
-        return create_default_json_response(f"Error: {str(e)}")
+    # parse the result into a json object
+     result = parse_json(result)
+     return result
 
 
 # Helper function to create default JSON response when extraction fails
@@ -242,7 +256,6 @@ async def extract_data(email, file: UploadFile, fields: list, db: AsyncIOMotorDa
 
     # Create temporary directory for images
     with tempfile.TemporaryDirectory() as temp_dir:
-
         # Extract markdown with images
         md_text = pymupdf4llm.to_markdown(pdf_path, write_images=True, image_path=temp_dir)
 
@@ -252,80 +265,16 @@ async def extract_data(email, file: UploadFile, fields: list, db: AsyncIOMotorDa
         uploaded_images = await asyncio.gather(*upload_tasks)
         uploaded_urls = [img["secure_url"] for img in uploaded_images]
 
-
     # Extract the references
-    data = extract_insight(pdf_path, fields)
+    paper_data = extract_insight(pdf_path, fields)
+    
     
     
     # Cleanup
     os.remove(pdf_path)
     
     # Upload the data to MongoDB with the user_email
-    try:
-        # Attempt to parse the JSON response
-        paper_data = json.loads(data)
-    except json.JSONDecodeError as e:
-        print(f"JSON parsing error: {e}")
-        print(f"First 100 chars of data: {data[:100]}...")
-        
-        # Try to fix common JSON formatting issues
-        try:
-            # Sometimes Gemini adds extra content before/after the JSON
-            # Find the first { and last }
-            start_idx = data.find('{')
-            end_idx = data.rfind('}') + 1
-            
-            if start_idx >= 0 and end_idx > start_idx:
-                clean_data = data[start_idx:end_idx]
-                paper_data = json.loads(clean_data)
-            else:
-                # If we can't find valid JSON markers, return a minimal valid response
-                paper_data = {
-                    "title": "Parsing Error - Please try again",
-                    "authors": [],
-                    "date_published": "",
-                    "metadata": {"doi": "", "conference": "", "tags": []},
-                    "summary": {
-                        "research_problem": "Error processing this paper. The AI response couldn't be parsed correctly.",
-                        "objective": "",
-                        "key_findings": "",
-                        "methods": "",
-                        "numbers": "",
-                        "dataset": "",
-                        "baseline_comparisons": "",
-                        "limitations": "",
-                        "future_work": "",
-                        "novelty_statement": "",
-                        "user_given_fields": []
-                    },
-                    "references": [],
-                    "image_urls": []  # Empty array for image URLs
-                }
-        except Exception as inner_e:
-            print(f"Failed to recover from JSON error: {inner_e}")
-            # Return minimal valid response if all recovery attempts fail
-            paper_data = {
-                "title": "Processing Error",
-                "authors": [],
-                "date_published": "",
-                "metadata": {"doi": "", "conference": "", "tags": []},
-                "summary": {
-                    "research_problem": "Error processing this paper. Please try again later.",
-                    "objective": "",
-                    "key_findings": "",
-                    "methods": "",
-                    "numbers": "",
-                    "dataset": "",
-                    "baseline_comparisons": "",
-                    "limitations": "",
-                    "future_work": "",
-                    "novelty_statement": "",
-                    "user_given_fields": []
-                },
-                "references": [],
-                "image_urls": []  # Empty array for image URLs
-            }
-
+ 
     paper_data["user_email"] = email
     paper_data["created_at"] = datetime.now()
     paper_data["image_urls"] = uploaded_urls  # Store the Cloudinary image URLs
@@ -409,5 +358,4 @@ async def update_paper_sections(db: AsyncIOMotorDatabase, paper_id: str, section
         result["acknowledged"] = True
     
     return result
-
 

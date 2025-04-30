@@ -1,0 +1,34 @@
+{
+  "title": "Error Processing Document",
+  "authors": [
+    {
+      "name": "Unknown",
+      "affiliation": "Unknown",
+      "email": ""
+    }
+  ],
+  "date_published": "",
+  "metadata": {
+    "doi": "",
+    "conference": "",
+    "tags": [
+      "error",
+      "processing_failed"
+    ]
+  },
+  "summary": {
+    "research_problem": "Error processing this document: Error: Models.generate_content() got an unexpected keyword argument 'generation_config'",
+    "objective": "Please try again or upload a different document.",
+    "key_findings": "",
+    "methods": "",
+    "numbers": "",
+    "dataset": "",
+    "baseline_comparisons": "",
+    "limitations": "",
+    "future_work": "",
+    "novelty_statement": "",
+    "user_given_fields": []
+  },
+  "references": [],
+  "image_urls": []
+}
