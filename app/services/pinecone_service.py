@@ -34,7 +34,8 @@ def upsert_json(paper_data: dict, metadata_id: str):
         paper_data["summary"]["objective"] +
         paper_data["summary"]["key_findings"] +
         paper_data["summary"]["methods"] +
-        "Date published" + str(paper_data["date_published"])
+        "Date published:" + str(paper_data["date_published"]) + paper_data['metadata']['tags'],
+
 
     )
 
@@ -57,15 +58,16 @@ def upsert_json(paper_data: dict, metadata_id: str):
 
 async def semantic_search(query: str):
     try:
-        results = await index.search(
+        results = index.search(
             namespace=namespace,
-            top_k=20,
-            include_metadata=True,
-            text=query
+            query ={
+                "top_k" : 20,
+                "inputs" : {
+                    "text": query
+                }
+                }
         )
-        print(results)
-        return results
-    except Exception as e:
-        print("Search failed:", e)
-        return None
+        return results.result.hits
+    except:
+        return
 

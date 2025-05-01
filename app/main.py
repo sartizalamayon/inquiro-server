@@ -4,6 +4,7 @@ from app.controllers.user_routes import router as user_router
 from app.database.mongodb import lifespan
 from app.controllers.paper_routes import router as paper_router
 from app.controllers.note_route import router as note_router
+from app.controllers.search_route import router as search_router
 
 # Initialize FastAPI app with lifespan
 app = FastAPI(title="inquiro", lifespan=lifespan)
@@ -21,6 +22,7 @@ app.add_middleware(
 app.include_router(user_router)
 app.include_router(paper_router)
 app.include_router(note_router)
+app.include_router(search_router)
 
 @app.get("/")
 async def root():
