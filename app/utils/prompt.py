@@ -49,7 +49,7 @@ You must return a JSON object that strictly follows the schema below:
 Instructions for Extraction:
 1. **Title:** Identify the research paper's title.
 2. **Authors:** Extract a list of authors along with their affiliation and email.
-3. **Date Published:** Determine the publication date. The format where the date is mentioned in the paper is "Month Day, Year". Example: "March 15, 2024". If the date is not mentioned in the paper, return an empty string.
+3. **Date Published:** Determine the publication date. The format where the date is mentioned in the paper is "Month Day, Year". Example: "March 15, 2024". If the date is not mentioned in the paper, Try to infer it from the context. Otherwise, return an empty string.
 4. **Metadata:** 
    - **DOI:** Provide the DOI if available; otherwise, return an empty string.
    - **Conference:** Note the conference name.

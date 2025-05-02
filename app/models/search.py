@@ -5,6 +5,9 @@ class SearchQuery(BaseModel):
     """Model for search query requests"""
     query: str = Field(..., description="Natural language search query")
     tags: Optional[List[str]] = Field(None, description="Tags to filter by")
+    authors: Optional[List[str]] = Field(None, description="Authors to filter by")
+    year_range: Optional[List[int]] = Field(None, description="Year range for filtering [start, end]")
+    score_range: Optional[List[float]] = Field(None, description="Score range for filtering [min, max]")
 
 
 class SearchResult(BaseModel):

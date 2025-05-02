@@ -10,18 +10,24 @@ async def search_papers(search_query: SearchQuery, db: AsyncIOMotorDatabase) -> 
     Search for papers using natural language query and optional filters
     """
     try:
-        # 1. Perform semantic search using Pinecone
-        search_results = await semantic_search(search_query.query)
+        # 1. Modify query with year range if provided
+        effective_query = search_query.query
+        if search_query.year_range and len(search_query.year_range) == 2:
+            start_year, end_year = search_query.year_range
+            effective_query += f" Year: {start_year} to {end_year}"
+        
+        # 2. Perform semantic search using Pinecone
+        search_results = await semantic_search(effective_query)
+
         
         if not search_results:
-            print(f"No search results found for query: {search_query.query}")
+            print(f"No search results found for query: {effective_query}")
             return {"results": [], "total": 0}
         
-        # 2. Get paper IDs from search results
-        paper_ids = [hit._id for hit in search_results]
-        print(paper_ids)
-        
-        # 3. Fetch full paper documents from MongoDB
+        # 3. Get paper IDs from search results
+        paper_ids = [hit["_id"] for hit in search_results]
+
+        # 4. Fetch full paper documents from MongoDB
         papers = []
         try:
             # Note: paper_ids are already string format from Pinecone
@@ -32,12 +38,11 @@ async def search_papers(search_query: SearchQuery, db: AsyncIOMotorDatabase) -> 
             return {"results": [], "total": 0}
         
         # Create a mapping of paper IDs to their documents for easier lookup
-        paper_map = {str(paper["_id"]): paper for paper in papers}
-    
-        # 4. Create the enhanced search results with required format
+        paper_map = {str(paper["_id"]): paper for paper in papers} 
+        # 5. Create the enhanced search results with required format
         enhanced_results = []
         for hit in search_results:
-            paper_id = hit._id
+            paper_id = hit["_id"]
             if paper_id not in paper_map:
                 continue
                 
@@ -84,12 +89,33 @@ async def search_papers(search_query: SearchQuery, db: AsyncIOMotorDatabase) -> 
                 "date_published": date_published,
                 "tags": tags  # Add tags for filtering
             }
-
             
             enhanced_results.append(result)
-            
-        # 5. Apply tag filtering if requested
+        
+        print('Len of res',len(enhanced_results))
+        # 6. Apply filtering
         filtered_results = enhanced_results
+        
+        # Apply score filtering if provided
+        score_range = search_query.score_range
+        if score_range and len(score_range) == 2 and (score_range[0] > 0 or score_range[1] < 1):
+            min_score, max_score = search_query.score_range
+            filtered_results = [
+                r for r in filtered_results 
+                if r["_score"] >= min_score and r["_score"] <= max_score
+            ]
+        
+        print('Score filtered')
+        print(filtered_results)
+
+        # Apply author filtering
+        if search_query.authors and len(search_query.authors) > 0:
+            filtered_results = [
+                r for r in filtered_results 
+                if any(author in search_query.authors for author in r["authors"])
+            ]
+        
+        # Apply tag filtering
         if search_query.tags and len(search_query.tags) > 0:
             filtered_results = [
                 r for r in filtered_results 
@@ -97,7 +123,6 @@ async def search_papers(search_query: SearchQuery, db: AsyncIOMotorDatabase) -> 
             ]
         
         # Sort by score (already done in Pinecone response)
-       
         
         return {
             "results": filtered_results,

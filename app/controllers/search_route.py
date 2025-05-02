@@ -20,9 +20,9 @@ async def search(
     """
     Search for papers using natural language query and optional filters.
     
-    The frontend can send either:
+    The frontend can send:
     1. A simple { query: "search text" } object
-    2. A full SearchQuery object with filters
+    2. A full SearchQuery object with filters for tags, authors, year range, and score range
     """
     # Extract the query and any filter parameters
     print(search_data)
@@ -33,12 +33,15 @@ async def search(
     # Create the search query object with optional filters
     search_query = SearchQuery(
         query=query,
-        tags=search_data.get("tags")
+        tags=search_data.get("tags"),
+        authors=search_data.get("authors"),
+        year_range=search_data.get("year_range"),
+        score_range=search_data.get("score_range")
     )
     
     # Call the search service
     search_response = await search_papers(search_query, db)
-
+    
     print(search_response)
     return search_response
 
