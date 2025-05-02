@@ -59,7 +59,7 @@ def parse_json(possibly_cut_json: str) -> dict:
 
 # Extract insight from the paper using GEMINI Flash Lite
 def extract_insight(file_path: str, fields: list):
-     print(fields)
+
      client = genai.Client(
          api_key=os.environ.get("GEMINI_API_KEY"),
      )
@@ -69,7 +69,7 @@ def extract_insight(file_path: str, fields: list):
      try:
         # Make the file available in local system working directory
         uploaded_file = client.files.upload(file = file_path)
-        print(f"File upload result: {uploaded_file}")
+        print(f"File uploaded successfully")
      except Exception as e:
          print(f"Error during file upload: {e}")
          raise

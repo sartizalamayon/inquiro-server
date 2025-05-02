@@ -6,10 +6,11 @@ class SearchQuery(BaseModel):
     query: str = Field(..., description="Natural language search query")
     tags: Optional[List[str]] = Field(None, description="Tags to filter by")
 
+
 class SearchResult(BaseModel):
     """Model for individual search result"""
-    _id: str
-    _score: float
+    id: str = Field(..., alias="_id")
+    score: float = Field(..., alias="_score")
     userUploadName: str
     title: str
     authors: List[str]

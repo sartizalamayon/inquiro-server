@@ -38,7 +38,8 @@ async def search(
     
     # Call the search service
     search_response = await search_papers(search_query, db)
-    
+
+    print(search_response)
     return search_response
 
 @router.get("/top-tags")

@@ -84,6 +84,7 @@ async def search_papers(search_query: SearchQuery, db: AsyncIOMotorDatabase) -> 
                 "date_published": date_published,
                 "tags": tags  # Add tags for filtering
             }
+
             
             enhanced_results.append(result)
             
@@ -96,6 +97,7 @@ async def search_papers(search_query: SearchQuery, db: AsyncIOMotorDatabase) -> 
             ]
         
         # Sort by score (already done in Pinecone response)
+       
         
         return {
             "results": filtered_results,
