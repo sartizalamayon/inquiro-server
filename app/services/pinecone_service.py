@@ -29,17 +29,22 @@ def upsert_json(paper_data: dict, metadata_id: str):
     print(paper_data)
     # 3a. Build the text blob from your summary fields
     authors_text = ', '.join(
-    f"{author['name']} ({author['affiliation']}, {author['email']})"
-    for author in paper_data["authors"]
-)
+        f"{author['name']} ({author['affiliation']}, {author['email']})"
+        for author in paper_data.get("authors", [])
+    )
+
+    tags_text = ', '.join(paper_data.get('metadata', {}).get('tags', []))
+
+    summary = paper_data.get("summary", {})
     text = (
-        paper_data["title"] +
+        str(paper_data.get("title", "")) +
         authors_text +
-        paper_data["summary"]["research_problem"] +
-        paper_data["summary"]["objective"] +
-        paper_data["summary"]["key_findings"] +
-        paper_data["summary"]["methods"] +
-        "Date published:" + str(paper_data["date_published"]) + paper_data['metadata']['tags']
+        str(summary.get("research_problem", "")) +
+        str(summary.get("objective", "")) +
+        str(summary.get("key_findings", "")) +
+        str(summary.get("methods", "")) +
+        "Date published: " + str(paper_data.get("date_published", "")) +
+        " Tags: " + tags_text
     )
 
     print(text)

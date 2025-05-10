@@ -20,11 +20,15 @@ var/
 .installed.cfg
 *.egg
 
+
 test_api.sh
+test_collections_api.sh
+extraction_results.json
 # Virtual Environment
 venv/
 myenv/
 ENV/
+env/
 
 app/pdf_test
 
