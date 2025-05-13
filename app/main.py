@@ -7,6 +7,8 @@ from app.controllers.note_route import router as note_router
 from app.controllers.search_route import router as search_router
 from app.controllers.collection_routes import router as collection_router
 from app.controllers.analytics_route import router as analytics_router
+from app.controllers.permission_routes import router as permission_router
+
 
 # Initialize FastAPI app with lifespan
 app = FastAPI(title="inquiro", lifespan=lifespan)
@@ -27,6 +29,7 @@ app.include_router(note_router)
 app.include_router(search_router)
 app.include_router(collection_router)
 app.include_router(analytics_router)
+app.include_router(permission_router)
 
 @app.get("/")
 async def root():

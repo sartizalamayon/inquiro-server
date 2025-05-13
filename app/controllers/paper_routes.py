@@ -76,7 +76,7 @@ async def get_papers(
         doc["_id"] = str(doc["_id"])  # convert ObjectId to string for JSON
         results.append(doc)
 
-    print('aschi', results)
+
     return results
 
 
