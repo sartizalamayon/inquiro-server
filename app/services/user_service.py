@@ -103,3 +103,22 @@ async def add_favorite(db: AsyncIOMotorDatabase, user_id: str, favorite_id: str)
         doc = await db.users.find_one({"_id": ObjectId(user_id)})
         return UserModel(**doc)
     return None
+
+async def update_user_name(db: AsyncIOMotorDatabase, email: str, new_user_name: str) -> Optional[UserModel]:
+    """
+    Update the user's name.
+    Returns the updated UserModel, or None if user is not found.
+    """
+    result = await db.users.update_one(
+        {"email": email},
+        {"$set": {"name": new_user_name}}
+    )
+    if result.modified_count:
+        doc = await db.users.find_one({"email": email})
+        return UserModel(**doc)
+    return None
+
+
+
+
+

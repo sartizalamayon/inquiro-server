@@ -14,8 +14,6 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-
-
 # Create a new user
 @router.post("/", response_model=UserModel)
 async def create_new_user(user: UserCreate, db: AsyncIOMotorDatabase = Depends(get_database)):
@@ -84,3 +82,17 @@ async def add_favorite_route(
     if not updated_user:
         raise HTTPException(status_code=404, detail="User or favorite invalid")
     return updated_user
+
+# Update a user's name
+@router.put("/{email}/{new_user_name}", response_model=UserModel)
+async def update_user(
+    email: str,
+    new_user_name: str,
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    updated_user = await user_service.update_user_name(db, email, new_user_name)
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return updated_user
+    
+

@@ -3,6 +3,8 @@ from pydantic import Field, EmailStr
 from typing import Optional, List
 from datetime import datetime
 from .base import MongoBaseModel, PyObjectId
+from pydantic import BaseModel
+
 
 class UserModel(MongoBaseModel):
     name: str
@@ -23,3 +25,4 @@ class UserCreate(MongoBaseModel):
 class UserCredentials(MongoBaseModel):
     email: EmailStr
     password: str
+
