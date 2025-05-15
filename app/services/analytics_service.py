@@ -129,7 +129,7 @@ async def _calc_numeric(db: AsyncIOMotorDatabase,
                 "count": {"$sum": 1}
             }},
         ]).to_list()
-        print("Papers by Month: ", papers_by_month)
+  
 
         # # [{ name: 'Jan', value: 12 }]
         papers_by_month = [
@@ -137,16 +137,14 @@ async def _calc_numeric(db: AsyncIOMotorDatabase,
             for m in papers_by_month
         ]
 
-        print("Most Active: ", most_active)
-        print("Papers by Month: ", papers_by_month)
+ 
     except Exception as e:
         print("Error in aggregation: ", e)
         most_active = {}
         papers_by_month = []
     # most_active = {
 
-    print("Most Active: ", most_active)
-    print("Papers by Month: ", papers_by_month)
+
 
     return NumericMetrics(
         total_papers=total_papers,

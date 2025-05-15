@@ -14,6 +14,8 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+
+
 # Create a new user
 @router.post("/", response_model=UserModel)
 async def create_new_user(user: UserCreate, db: AsyncIOMotorDatabase = Depends(get_database)):

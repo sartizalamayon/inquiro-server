@@ -116,6 +116,7 @@ async def add_tag_to_collection(
     """
     Add a tag to a collection
     """
+    print(f"Adding tag {tag} to collection {collection_id} for user {user_email}")
     result = await collection_service.add_tag_to_collection(db, collection_id, tag, user_email)
     return result
 
